@@ -19,7 +19,7 @@ def main(args):
     board = CBoard()
     display(board)
     session = onnxruntime.InferenceSession(args.model)
-    mcts = MCTS(board,session,args.playout,batch_size=4)
+    mcts = MCTS(board,session,args.playout,batch_size=4,perfect=5)
     result = 1
     
     print("ターミナル等黒背景にしていると石の色が反転します。")
