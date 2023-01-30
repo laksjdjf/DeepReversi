@@ -1,6 +1,6 @@
 from modules.cboard import CBoard
 from modules.mcts import MCTS
-from modules.utils import count,display,num2pos,pos2num
+from modules.utils import count,display,num2pos,pos2num,BLACK,WHITE
 import onnxruntime
 import argparse
 
@@ -18,51 +18,46 @@ parser.add_argument('--auto_play', action="store_true", help='コンピュータ
 def main(args):
     board = CBoard()
     display(board)
-    session = onnxruntime.InferenceSession(args.model)
+    session = onnxruntime.InferenceSession(args.model,providers=['CPUExecutionProvider'])
     mcts = MCTS(board,session,args.playout,batch_size=4,perfect=5)
-    result = 1
     
-    print("ターミナル等黒背景にしていると石の色が反転します。")
-    if args.second:
-        print("コンピュータの手番ですよ")
-        move,eval = mcts.move(re_eval=True)
-        print(f"指し手：{move},評価値：{eval}")
-        display(mcts.original_board)
+    player =  WHITE if args.second else BLACK
     
-    while result:
+    while True:
         move = 0 if args.auto_play else None
-        while move not in mcts.original_board.legal_moves and move != 0:
-            if move is None:
-                message = "指し手を入力してください（0とするとコンピュータに任せます）"
-            else:
-                message = "合法手ではないようです。もう一度入力してください（0とするとコンピュータに任せます）"
-            move = input(message)
-            try:
-                move = pos2num(move)
-            except:
-                move = "no"
-        if move == 0:
-            print("コンピュータが指しますよ")
-            move,eval = mcts.move(re_eval=True)
-            print(f"指し手：{move},評価値：{eval}")
+        if mcts.original_board.turn == player:
+	        while move not in mcts.original_board.legal_moves and move != 0:
+	            if move is None:
+	                message = "指し手を入力してください（0とするとコンピュータに任せます）"
+	            else:
+	                message = "合法手ではないようです。もう一度入力してください（0とするとコンピュータに任せます）"
+	            move = input(message)
+	            try:
+	                move = pos2num(move)
+	            except:
+	                move = "no"
+	        if move == 0:
+	            print("コンピュータが指しますよ")
+	            move,eval = mcts.move(re_eval=True)
+	            print(f"指し手：{move},評価値：{eval}")
+	        else:
+	            mcts.move_enemy(move)
+	        display(mcts.original_board)
+	        if len(mcts.original_board.legal_moves) == 0:
+	            print("対局終了でーす。")
+	            black,white = count(mcts.original_board) 
+	            print(f"黒:{black},白:{white}")
+	            return
         else:
-            mcts.move_enemy(move)
-        display(mcts.original_board)
-        if len(mcts.original_board.legal_moves) == 0:
-            print("対局終了でーす。")
-            black,white = count(mcts.original_board) 
-            print(f"黒:{black},白:{white}")
-            return
-        
-        print("コンピュータの手番ですよ")
-        move,eval = mcts.move(re_eval=True)
-        print(f"指し手：{move},評価値：{eval}")
-        display(mcts.original_board)
-        if len(mcts.original_board.legal_moves) == 0:
-            print("対局終了でーす。")
-            black,white = count(mcts.original_board) 
-            print(f"黒:{black},白:{white}")
-            return 
+	        print("コンピュータの手番ですよ")
+	        move,eval = mcts.move(re_eval=True)
+	        print(f"指し手：{move},評価値：{eval}")
+	        display(mcts.original_board)
+	        if len(mcts.original_board.legal_moves) == 0:
+	            print("対局終了でーす。")
+	            black,white = count(mcts.original_board) 
+	            print(f"黒:{black},白:{white}")
+	            return 
 
 if __name__ == "__main__":
     args = parser.parse_args()
