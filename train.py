@@ -1,6 +1,9 @@
 import torch
+from torch.utils.data import DataLoader
+import torch.nn.functional as F
+
 from modules.dataset import BoardDataset
-from modules.network import PoliciValueNetwork
+from modules.network import PolicyValueNetwork
 import argparse
 from tqdm import tqdm
 import time
@@ -41,12 +44,12 @@ def main(args):
     train_size = int(len(dataset)*0.9)
     train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size,len(dataset)-train_size],)
     
-    train_dataloader = DataLoader(train_dataset, args.batch_size, shuffle=True,num_workers=2)
-    test_dataloader = DataLoader(test_dataset, args.batch_size, shuffle=False,num_workers=2)
+    train_dataloader = DataLoader(train_dataset, args.batch_size, shuffle=True,num_workers=8)
+    test_dataloader = DataLoader(test_dataset, args.batch_size, shuffle=False,num_workers=8)
     
     policy_weight = 1
     
-    total_step = len(train_dataloader) * args.epoch
+    total_steps = len(train_dataloader) * args.epoch
     
     #プログレスバー
     progress_bar = tqdm(range(total_steps), desc="Total Steps", leave=False)
@@ -56,6 +59,11 @@ def main(args):
         model.train()
         for batch_idx, (features,moves,results,evals) in enumerate(train_dataloader):
             b_start = time.perf_counter()
+            
+            features = features.to(device)
+            moves = moves.to(device)
+            results = results.to(device).unsqueeze(1)
+            evals = evals.to(device).unsqueeze(1)
             
             with torch.cuda.amp.autocast(): 
                 # 損失計算
@@ -104,13 +112,16 @@ def main(args):
         value_correct = 0
         with torch.no_grad():
             for features,moves,results,_ in test_dataloader:
+                features = features.to(device)
+                moves = moves.to(device)
+                results = results.to(device).unsqueeze(1)
                 output1,output2 = model(features)
-                policy_correct += (output1.argmax(axis=1) == policy.argmax(axis=1)).type(torch.float).sum().item()
+                policy_correct += (output1.argmax(axis=1) == moves.argmax(axis=1)).type(torch.float).sum().item()
                 value_correct += (output2>=0).eq(results>=0.5).type(torch.float).sum().item()
             policy_correct /= len(test_dataloader.dataset)
             value_correct /= len(test_dataloader.dataset)
             print(f'epoch: {epoch + 1}, policy accuracy: {policy_correct}, value accuracy: {value_correct}')
-
+        torch.save(model.state_dict(), args.output)
 
 if __name__ == "__main__":
     args = parser.parse_args()
