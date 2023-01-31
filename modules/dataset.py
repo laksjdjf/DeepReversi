@@ -5,15 +5,11 @@ import numpy as np
 class BoardDataset:
     def __init__(self, path) -> None:
         data = np.load(path)
-        self.features = data[features].astype(np.int8)
-        self.results = data[results]
-        self.moves = np.eye(64)[data[moves]]
-        self.evals = data[evals]
+        self.features = data["features"].astype(np.int8)
+        self.results = data["results"]
+        self.moves = np.eye(64)[data["moves"]]
+        self.evals = data["evals"]
     def __getitem__(self,index: int):
-        return 
-                torch.tensor(self.features[index],device="cuda",dtype=torch.float),
-                torch.tensor(self.moves[index],device="cuda",dtype=torch.float),
-                torch.tensor(self.results[index],device="cuda",dtype=torch.float).unsqueeze(1),
-                torch.tensor(self.evals[index],device="cuda",dtype=torch.float).unsqueeze(1)
+        return torch.tensor(self.features[index],dtype=torch.float),torch.tensor(self.moves[index],dtype=torch.float),torch.tensor(self.results[index],dtype=torch.float),torch.tensor(self.evals[index],dtype=torch.float)
     def __len__(self):
-        return len(results)
+        return len(self.results)
