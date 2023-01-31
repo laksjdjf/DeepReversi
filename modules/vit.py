@@ -185,7 +185,6 @@ class MultiHeadSelfAttention(nn.Module):
 # ----------------------------
 # 2-5 Encoder
 # ----------------------------
-print("=======2-5 Encoder=======")
 
 class VitEncoderBlock(nn.Module): 
     def __init__(self, emb_dim:int=64, head:int=8, hidden_dim:int=64*4, dropout: float=0.):
@@ -305,10 +304,8 @@ class Vit(nn.Module):
         ## (B, N, D) -> (B, D)
         cls_token = out[:,0]
         
-        print(out.shape)
         # パッチトークン
         ## (B, N, D) -> (B, D, 8, 8)
-        print(out[:,1:,:].shape)
         patch_token = out[:,1:].permute(0,2,1).reshape(out.shape[0],out.shape[2],8,8)
         
         #value
