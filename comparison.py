@@ -9,7 +9,7 @@ import random
 
 
 ###コマンドライン引数#########################################################################
-parser = argparse.ArgumentParser(description='StableDiffusionの訓練コード')
+parser = argparse.ArgumentParser(description='')
 parser.add_argument('model1', type=str, help='学習済みモデルパス1（onnx）')
 parser.add_argument('model2', type=str, help='学習済みモデルパス2（onnx）')
 parser.add_argument('--playout', type=int, default=100, help='プレイアウト数')
@@ -27,9 +27,14 @@ def main(args):
     black_win = 0
     white_win = 0
     
-    session1 = onnxruntime.InferenceSession(args.model1,providers=['CPUExecutionProvider'])
-    session2 = onnxruntime.InferenceSession(args.model2,providers=['CPUExecutionProvider'])
-    
+    if args.model1 != "random":
+        session1 = onnxruntime.InferenceSession(args.model1,providers=['CUDAExecutionProvider','CPUExecutionProvider'])
+    else:
+        session1 = "random"
+    if args.model2 != "random":        
+        session2 = onnxruntime.InferenceSession(args.model2,providers=['CUDAExecutionProvider','CPUExecutionProvider'])
+    else:
+        session2 = "random"
     #プログレスバー
     progress_bar = tqdm(range(args.num_plays), desc="Total Steps", leave=False)
     for i in range(args.num_plays):
@@ -70,7 +75,7 @@ def main(args):
                       white_win += 1
                 break
         #プログレスバー更新
-        logs={"model1_win":model1_win,"model2_win":model2_win}
+        logs={"model1_win":model1_win,"model2_win":model2_win,"model1_time":model1_time,"model2_time":model2_time}
         progress_bar.update(1)
         progress_bar.set_postfix(logs)
         
