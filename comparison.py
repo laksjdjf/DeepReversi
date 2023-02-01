@@ -58,9 +58,9 @@ def main(args):
                     move = mcts2.move(0)
                 else:
                     move = mcts2.move(1)
-                mcts1.move_enemy(move)
                 end_time = time.perf_counter()
-                model2_time += end_time - start_time 
+                model2_time += end_time - start_time
+                mcts1.move_enemy(move) 
             result = board.move(move)
 
             if result == 1:
