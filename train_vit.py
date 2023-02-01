@@ -9,6 +9,8 @@ from modules.vit import Vit
 import argparse
 from tqdm import tqdm
 import time
+import os
+import wandb
 
 ###コマンドライン引数#########################################################################
 parser = argparse.ArgumentParser(description='StableDiffusionの訓練コード')
@@ -53,10 +55,11 @@ def main(args):
     
     total_steps = len(train_dataloader) * args.epoch
     
+    run = wandb.init(project="DeepReversi", name=args.output,dir=os.path.join(args.output,'wandb'))
     #プログレスバー
     progress_bar = tqdm(range(total_steps), desc="Total Steps", leave=False)
     loss_ema = None #訓練ロスの指数平均
-
+    global_step = 0
     for epoch in range(args.epoch):
         model.train()
         for batch_idx, (features,moves,results,evals) in enumerate(train_dataloader):
@@ -104,9 +107,11 @@ def main(args):
             samples_per_time = args.batch_size / time_per_steps
             
             #プログレスバー更新
+            global_step += 1
             logs={"loss":loss_ema,"samples_per_second":samples_per_time}
             progress_bar.update(1)
             progress_bar.set_postfix(logs)
+            run.log(logs, step=global_step)
             
         model.eval()
         test_loss = 0
@@ -123,6 +128,7 @@ def main(args):
             policy_correct /= len(test_dataloader.dataset)
             value_correct /= len(test_dataloader.dataset)
             print(f'epoch: {epoch + 1}, policy accuracy: {policy_correct}, value accuracy: {value_correct}')
+        run.log({"policy_accuracy":policy_correct,"value_accuracy":value_correct}, step=global_step)
         torch.save(model.state_dict(), args.output)
 
 if __name__ == "__main__":
