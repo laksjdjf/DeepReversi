@@ -7,8 +7,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
-
 # ----------------------------
 # 2-3 Input Layer
 # ----------------------------
