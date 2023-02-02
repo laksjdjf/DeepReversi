@@ -30,12 +30,12 @@ def main(args):
         print("cudaが使えません")
         return
     
-    if args.network = "resnet":
+    if args.network == "resnet":
         from modules.network import ResNet
         model = ResNet(channels=args.channels, blocks=args.blocks, fcl=args.fcl)
-    elif args.network = "vit":
+    elif args.network == "vit":
         from modules.network import Vit
-        model = Vit(emb_dim:int=args.channels, num_blocks:int=args.blocks, hidden_dim:int=args.fcl)
+        model = Vit(emb_dim=args.channels, num_blocks=args.blocks, hidden_dim=args.fcl)
         
     model.to(device)
     
