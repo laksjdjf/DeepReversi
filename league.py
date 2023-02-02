@@ -20,7 +20,7 @@ def main():
                 
                 game = Game(player1,player2,epsilon=epsilon)
                 game()
-        dic = {player.name:f"{player.wins}勝{player.loses}敗, elo:{round(player.elo)}" for player in players}
+        dic = {player.name:f"{player.wins}勝{player.loses}敗, elo:{round(player.elo)}, time:{round(player.think_time)}" for player in players}
         print(dic)
         with open("league_results.json", "w") as f:
             json.dump(dic,f,indent = 2, ensure_ascii=False)
