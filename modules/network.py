@@ -26,7 +26,7 @@ class ResNetBlock(nn.Module):
 #ResNetBlockを並べたネットワーク、channelとblock数を設定できる。
 class ResNet(nn.Module):
     def __init__(self, channels=64, blocks=4, fcl=128):
-        super(PolicyValueNetwork, self).__init__()
+        super(ResNet, self).__init__()
         self.conv1 = nn.Conv2d(2, channels, kernel_size=3, stride=1, padding=1)
         self.norm1 = nn.BatchNorm2d(channels)
 
