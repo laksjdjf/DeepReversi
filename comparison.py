@@ -1,89 +1,39 @@
-from modules.cboard import CBoard
-from modules.mcts import MCTS
-from modules.utils import BOARD
-import time
-import onnxruntime
 import argparse
 from tqdm import tqdm
-import random
-
+from game import Player, Game
+from modules.cboard import CBoard
 
 ###コマンドライン引数#########################################################################
-parser = argparse.ArgumentParser(description='')
-parser.add_argument('model1', type=str, help='学習済みモデルパス1（onnx）')
-parser.add_argument('model2', type=str, help='学習済みモデルパス2（onnx）')
-parser.add_argument('--playout', type=int, default=100, help='プレイアウト数')
-parser.add_argument('--batch_size', type=int, default=4, help='バッチサイズ')
-parser.add_argument('--num_plays', type=int, default=100, help='試合数')
+parser = argparse.ArgumentParser(description='2つのモデルを比較する')
+parser.add_argument('model1', type=str, help='プレイヤー１')
+parser.add_argument('model2', type=str, help='プレイヤー２')
+parser.add_argument('num_plays', type=int, help='試合数、前後半やるため偶数推奨！！')
+parser.add_argument('--epsilon', type=float, default = 0.8, help='次善手を打つ確率 mctsのみ')
 ############################################################################################
 
 def main(args):
-    epsilon = 0.7
-    model1_time = 0
-    model2_time = 0
-    model1_win = 0
-    model2_win = 0
-
-    black_win = 0
-    white_win = 0
-    
-    if args.model1 != "random":
-        session1 = onnxruntime.InferenceSession(args.model1,providers=['CUDAExecutionProvider','CPUExecutionProvider'])
-    else:
-        session1 = "random"
-    if args.model2 != "random":        
-        session2 = onnxruntime.InferenceSession(args.model2,providers=['CUDAExecutionProvider','CPUExecutionProvider'])
-    else:
-        session2 = "random"
     #プログレスバー
+    board = CBoard()
+    player1 = Player(board,args.model1)
+    player2 = Player(board,args.model2)
+    black_win = 0
     progress_bar = tqdm(range(args.num_plays), desc="Total Steps", leave=False)
+    
     for i in range(args.num_plays):
-        board = CBoard()
-        mcts1 = MCTS(board,session1,args.playout,batch_size=args.batch_size,perfect=5)
-        mcts2 = MCTS(board,session2,args.playout,batch_size=args.batch_size,perfect=5)
+        game = Game(player1,player2,epsilon=args.epsilon)
+        black_win += game(reverse = False if i%2 == 0 else True)
         
-        while True:
-            if board.turn == [1,-1][i%2]:
-                start_time = time.perf_counter()
-                if random.random() <= epsilon:
-                    move = mcts1.move(0)
-                else:
-                    move = mcts1.move(1)
-                end_time = time.perf_counter()
-                model1_time += end_time - start_time    
-                mcts2.move_enemy(move)
-            else:
-                start_time = time.perf_counter()
-                if random.random() <= epsilon:
-                    move = mcts2.move(0)
-                else:
-                    move = mcts2.move(1)
-                end_time = time.perf_counter()
-                model2_time += end_time - start_time
-                mcts1.move_enemy(move) 
-            result = board.move(move)
-
-            if result == 1:
-                num = board.board[BOARD].sum()
-                if [1,-1][i%2] * num > 0:
-                    model1_win += 1
-                elif num != 0:
-                    model2_win += 1
-                if num > 0:
-                    black_win += 1
-                elif num < 0:
-                      white_win += 1
-                break
         #プログレスバー更新
-        logs={"model1_win":model1_win,"model2_win":model2_win,"model1_time":model1_time,"model2_time":model2_time}
+        logs={"model1_win":player1.wins,"model2_win":player2.wins,"model1_time":player1.think_time,"model2_time":player2.think_time}
         progress_bar.update(1)
         progress_bar.set_postfix(logs)
         
     print("")
-    print(model1_win,model2_win)
-    print(black_win,white_win)
-    print(model1_time)
-    print(model2_time)
+    print(f"player1目線で{player1.wins}勝{player2.wins}敗！！！")
+    print(f"先攻：{black_win}勝,後攻：{args.num_plays - black_win}勝")
+    print(f"player1思考時間：{player1.think_time}")
+    print(f"player2思考時間：{player2.think_time}")
+
 
 if __name__ == "__main__":
     args = parser.parse_args()

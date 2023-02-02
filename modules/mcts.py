@@ -58,7 +58,7 @@ class Node():
 
 def infer(feature,session,batch=1):
     if session == "random":
-      return np.random.rand(batch,64) , np.random.rand(batch,1)
+        return np.random.rand(batch,64) , np.random.rand(batch,1)
     io_binding = session.io_binding()
     io_binding.bind_cpu_input('input', feature)
     io_binding.bind_output('policy')
@@ -91,7 +91,22 @@ class MCTS():
         self.node_test = node_test
         self.perfect = perfect
         self.temp = temp
-
+    
+    def reset(self,board):
+        self.original_node = Node(self.iniwin,self.node_test)
+        self.original_board = board.copy()
+        self.current_node = self.original_node
+        self.current_board = board.copy()
+        self.route = []
+        self.indexes = []
+        self.turns = [self.current_board.turn]
+        self.moves = []
+        self.playout_number = 0
+        self.current_batch = 0
+        self.batch_route = []
+        self.batch_feature = []
+        self.times = 0
+        
     def search(self,prob=False):
         self.times = 0
         while self.playout_number <= self.halt:
