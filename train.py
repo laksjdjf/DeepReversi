@@ -1,24 +1,26 @@
+#Resnet Vitに対応
+
 import torch
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
 from modules.dataset import BoardDataset
-from modules.network import PolicyValueNetwork
 import argparse
 from tqdm import tqdm
 import time
 
 ###コマンドライン引数#########################################################################
-parser = argparse.ArgumentParser(description='StableDiffusionの訓練コード')
+parser = argparse.ArgumentParser(description='Reversiの訓練コード')
 parser.add_argument('--model', type=str, default=None, help='学習済みモデルパス（pth）')
 parser.add_argument('--dataset', type=str, required=True, help='データセットモデルパス')
 parser.add_argument('--output', type=str, required=True, help='モデル出力先（pth）')
 parser.add_argument('--epoch', type=int, default=20, help='エポック')
 parser.add_argument('--batch_size', type=int, default=4096, help='バッチサイズ')
-parser.add_argument('--channels', type=int, default=64, help='チャンネル')
+parser.add_argument('--channels', type=int, default=64, help='チャンネル:埋め込み次元')
 parser.add_argument('--blocks', type=int, default=4, help='ブロック')
-parser.add_argument('--fcl', type=int, default=128, help='全結合隠れ層')
-
+parser.add_argument('--fcl', type=int, default=128, help='全結合隠れ層：MLP隠れ層')
+parser.add_argument('--network', type=str, required=True, help='モデル選択：「resnet,vit」')
+parser.add_argument('--lr', type=float, required=True, help='学習率')
 ############################################################################################
 
 def main(args):
@@ -27,12 +29,18 @@ def main(args):
     else:
         print("cudaが使えません")
         return
+    
+    if args.network = "resnet":
+        from modules.network import ResNet
+        model = ResNet(channels=args.channels, blocks=args.blocks, fcl=args.fcl)
+    elif args.network = "vit":
+        from modules.network import Vit
+        model = Vit(emb_dim:int=args.channels, num_blocks:int=args.blocks, hidden_dim:int=args.fcl)
         
-    model = PolicyValueNetwork(args.channels,args.blocks,args.fcl)
     model.to(device)
     
     #default
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9, weight_decay=0.0001)
+    optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=0.0001)
     loss_cel = torch.nn.CrossEntropyLoss()
     loss_bce = torch.nn.BCEWithLogitsLoss()
     
