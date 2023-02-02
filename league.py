@@ -23,7 +23,7 @@ def main():
         dic = {player.name:f"{player.wins}勝{player.loses}敗, elo:{round(player.elo)}" for player in players}
         print(dic)
         with open("league_results.json", "w") as f:
-            json.dump(results,f,indent = 2, ensure_ascii=False)
+            json.dump(dic,f,indent = 2, ensure_ascii=False)
             
 if __name__ == "__main__":
     main()
