@@ -78,26 +78,39 @@ def main(args):
     for epoch in range(args.epoch):
         model.train()
         for batch_idx, (features,moves,results,evals) in enumerate(train_dataloader):
-            b_start = time.perf_counter()
             
+            b_start = time.perf_counter()
             features = features.to(device)
             moves = moves.to(device)
             results = results.to(device).unsqueeze(1)
-            evals = evals.to(device).unsqueeze(1)
+            if evals[0] != "None":
+                evals = evals.to(device).unsqueeze(1)
             
             with torch.cuda.amp.autocast(): 
                 # 損失計算
                 output1,output2 = model(features)
+                
+                #交差エントロピー損失
                 loss_p = torch.sum(- moves * F.log_softmax(output1,dim=1),1)
-                z = results - evals + 0.5
-
-                loss_p = (loss_p * z).mean()
+                
+                #actor critic
+                if evals[0] != "None":
+                    z = results - evals + 0.5
+                    loss_p = (loss_p * z).mean()
+                else:
+                    loss_p = loss_p.mean()
+                
+                #エントロピー正則化
                 loss_p += (F.softmax(output1, dim=1) * F.log_softmax(output1, dim=1)).sum(dim=1).mean()
-
+                
                 loss_v = loss_bce(output2,results)
-                loss_e = loss_bce(output2,evals)
-
-                loss = loss_p + loss_v * 0.7 + loss_e * 0.3
+                
+                #boot strap
+                if evals[0] != "None":
+                    loss_e = loss_bce(output2,evals)
+                    loss = loss_p + loss_v * 0.7 + loss_e * 0.3
+                else:
+                    loss = loss_p + loss_v
             
             #勾配リセット
             optimizer.zero_grad()
