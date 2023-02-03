@@ -139,6 +139,7 @@ class Board{
         }
 
         //numpy用、機械学習のためにいらない壁を壊す
+        //モデルには全て黒側目線として入力する。白の手番の場合色を反転する。これにより手番の情報をモデルに渡す必要がない。
         vector<MatrixXd> feature(){
             MatrixXd feature1 = MatrixXd::Zero(8,8);
             MatrixXd feature2 = MatrixXd::Zero(8,8);
@@ -150,7 +151,7 @@ class Board{
             int t = turn==1 ? 0:1;
             for(int y=0;y<8;y++){
                 for(int x=0;x<8;x++){
-                    if(board(y*10+x+11)==1)features[t](y,x)=1;
+                    if(board(y*10+x+11)==1)features[t](y,x)=1; // turn == 1のときは白黒反転
                     if(board(y*10+x+11)==-1)features[1-t](y,x)=1;
                 }
             }
