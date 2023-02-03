@@ -1,4 +1,4 @@
-#Resnet Vitに対応
+#Resnet Vit mlp-mixerに対応
 
 import torch
 from torch.utils.data import DataLoader
@@ -8,6 +8,8 @@ from modules.dataset import BoardDataset
 import argparse
 from tqdm import tqdm
 import time
+import os
+import wandb
 
 ###コマンドライン引数#########################################################################
 parser = argparse.ArgumentParser(description='Reversiの訓練コード')
@@ -19,7 +21,7 @@ parser.add_argument('--batch_size', type=int, default=4096, help='バッチサ�
 parser.add_argument('--channels', type=int, default=64, help='チャンネル:埋め込み次元')
 parser.add_argument('--blocks', type=int, default=4, help='ブロック')
 parser.add_argument('--fcl', type=int, default=128, help='全結合隠れ層：MLP隠れ層')
-parser.add_argument('--network', type=str, required=True, help='モデル選択：「resnet,vit」')
+parser.add_argument('--network', type=str, required=True, help='モデル選択：「resnet,vit,mixer」')
 parser.add_argument('--lr', type=float, required=True, help='学習率')
 ############################################################################################
 
@@ -33,10 +35,17 @@ def main(args):
     if args.network == "resnet":
         from modules.network import ResNet
         model = ResNet(channels=args.channels, blocks=args.blocks, fcl=args.fcl)
+        
     elif args.network == "vit":
         from modules.network import Vit
         model = Vit(emb_dim=args.channels, num_blocks=args.blocks, hidden_dim=args.fcl)
         
+    elif args.network == "mixer":
+        from modules.network import MLPMixer
+        model = MLPMixer(emb_dim=args.channels, num_blocks=args.blocks, channels_mlp_dim=args.fcl)
+    
+    if args.model is not None:
+        model.load_state_dict(torch.load(args.model))
     model.to(device)
     
     #default
@@ -59,9 +68,12 @@ def main(args):
     
     total_steps = len(train_dataloader) * args.epoch
     
+    run = wandb.init(project="DeepReversi", name=args.output,dir=os.path.join(args.output,'wandb'))
+    
     #プログレスバー
     progress_bar = tqdm(range(total_steps), desc="Total Steps", leave=False)
     loss_ema = None #訓練ロスの指数平均
+    global_step = 0
 
     for epoch in range(args.epoch):
         model.train()
@@ -113,6 +125,8 @@ def main(args):
             logs={"loss":loss_ema,"samples_per_second":samples_per_time}
             progress_bar.update(1)
             progress_bar.set_postfix(logs)
+            global_step += 1
+            run.log(logs, step=global_step)
             
         model.eval()
         test_loss = 0
@@ -129,6 +143,7 @@ def main(args):
             policy_correct /= len(test_dataloader.dataset)
             value_correct /= len(test_dataloader.dataset)
             print(f'epoch: {epoch + 1}, policy accuracy: {policy_correct}, value accuracy: {value_correct}')
+        run.log({"policy accuracy":policy_correct, "value_accuracy": value_correct}, step=global_step)
         torch.save(model.state_dict(), args.output)
 
 if __name__ == "__main__":
