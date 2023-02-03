@@ -346,3 +346,76 @@ class Vit(nn.Module):
         
         
         return policy, value
+
+#mlp mixer ref:https://github.com/google-research/vision_transformer/blob/linen/vit_jax/models_mixer.py
+
+# emb_dim -> mlp_dim -> emb_dim
+class MLPBlock(nn.Module):
+    def __init__(self, emb_dim:int, mlp_dim:int, dropout:float):
+        super(MLPBlock, self).__init__()
+        self.mlp_block = nn.Sequential( 
+            nn.Linear(emb_dim, mlp_dim), 
+            nn.GELU(),
+            nn.Dropout(dropout), 
+            nn.Linear(mlp_dim, emb_dim), 
+            nn.Dropout(dropout)
+        )
+
+    def forward(self, x):
+        out = self.mlp_block(x)
+        return out
+        
+class MixerBlock(nn.Module):
+    def __init__(self, emb_dim:int, channels_mlp_dim:int, tokens_mlp_dim:int, dropout:float):
+        super(MixerBlock, self).__init__()
+        self.ln1 = nn.LayerNorm(emb_dim)
+        self.tokens_mlp = MLPBlock(64, tokens_mlp_dim, dropout)
+        self.ln2 = nn.LayerNorm(emb_dim)
+        self.channels_mlp = MLPBlock(emb_dim, channels_mlp_dim, dropout)
+
+    def forward(self, x):
+        y = self.ln1(x)
+        
+        #(B, 64, D)->(B, D, 64)
+        y = y.transpose(1, 2)
+        y = self.tokens_mlp(y)
+        y = y.transpose(1, 2)
+        y = x + y
+        
+        y = self.ln2(y)
+        return x + self.channels_mlp(y)
+    
+class MLPMixer(nn.Module):
+    def __init__(self, emb_dim:int, num_blocks:int, channels_mlp_dim:int, tokens_mlp_dim:int=256, dropout:float=0.):
+        super(MLPMixer, self).__init__()
+        #オセロ固定
+        self.proj_in = nn.Conv2d(2, emb_dim, kernel_size = 1, stride = 1, padding = 0)
+        self.mixer_blocks = nn.Sequential(*[
+            MixerBlock(
+                emb_dim=emb_dim,
+                tokens_mlp_dim=tokens_mlp_dim,
+                channels_mlp_dim=channels_mlp_dim,
+                dropout = dropout
+        ) for _ in range(num_blocks)])
+
+        self.ln  = nn.LayerNorm(emb_dim)
+        
+        self.p1 = nn.Conv2d(emb_dim,1,kernel_size=1,stride=1,padding=0)
+
+        self.v1 = nn.Linear(emb_dim*64, channels_mlp_dim) #なんとなくchannles_mlp_dimと同じにしてしまう。
+        self.v2 = nn.Linear(channels_mlp_dim, 1)
+    
+    def forward(self, x):
+        
+        #(B,2,8,8) -> (B,D,8,8) -> (B,D,64) -> (B,64,D)
+        x = self.proj_in(x).flatten(2).transpose(1,2)
+        x = self.mixer_blocks(x)
+        x = self.ln(x)
+        
+        policy = x.permute(0,2,1).reshape(x.shape[0],x.shape[2],8,8)
+        policy = self.p1(policy).flatten(1)
+        
+        value = self.v1(x.flatten(1))
+        value = self.v2(torch.relu(value))
+        
+        return policy, value
