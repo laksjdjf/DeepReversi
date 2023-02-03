@@ -10,7 +10,10 @@ class BoardDataset:
         self.features = data["features"].astype(np.int8)
         self.results = data["results"]
         self.moves = np.eye(64)[data["moves"]].astype(np.int8)
-        self.evals = data["evals"]
+        if "evals" in data:
+            self.evals = data["evals"]
+        else:
+            self.evals = None
         self.rotate = transforms.RandomRotation((90,90))
         self.transform = transforms.Compose(
             [
@@ -26,7 +29,10 @@ class BoardDataset:
             board = self.rotate(board)
         feature_tensor, move_tensor = self.transform(board).split([2,1],dim=0)
         move_tensor = move_tensor.reshape(64)
-        
-        return feature_tensor.float(),move_tensor.float(),torch.tensor(self.results[index],dtype=torch.float),torch.tensor(self.evals[index],dtype=torch.float)
+        if self.evals is not None:
+            evals = torch.tensor(self.evals[index],dtype=torch.float)
+        else:
+            evals = "None"
+        return feature_tensor.float(),move_tensor.float(),torch.tensor(self.results[index],dtype=torch.float),evals
     def __len__(self):
         return len(self.results)
